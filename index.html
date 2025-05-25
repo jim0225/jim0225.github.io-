@@ -77,6 +77,10 @@
             return compressed;
         }
 
+        function calculateSize(data) {
+            return new TextEncoder().encode(data).length;
+        }
+
         function test() {
             const size = parseInt(document.getElementById('size').value);
             const types = [
