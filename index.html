@@ -1,121 +1,107 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <title>데이터 압축 테스트</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #f0f0f0;
-        }
-        .container {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        input[type="number"] {
-            width: 200px;
-            padding: 8px;
-            margin: 10px 0;
-        }
-        button {
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .result {
-            margin-top: 20px;
-            padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 4px;
-        }
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input { width: 100%; padding: 8px; margin-bottom: 10px; }
+        button { padding: 10px 20px; background: #4CAF50; color: white; border: none; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; }
+        .error { color: red; margin: 10px 0; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>데이터 압축 테스트</h1>
-        <input type="number" id="size" value="1000" placeholder="데이터 크기 (바이트)">
-        <button onclick="test()">실행</button>
+        <h1>데이터 생성기</h1>
+        
+        <div class="input-group">
+            <label>데이터 크기 (바이트):</label>
+            <input type="number" id="size" min="1" placeholder="데이터 크기를 입력하세요">
+        </div>
+
+        <div class="input-group">
+            <label>반복 횟수:</label>
+            <input type="number" id="count" min="1" placeholder="반복 횟수를 입력하세요">
+        </div>
+
+        <button onclick="generateData()">데이터 생성</button>
+
         <div id="result"></div>
     </div>
 
     <script>
-        function generateData(type, size) {
-            switch(type) {
-                case 'pattern':
-                    return '01'.repeat(size/2);
-                case 'natural':
-                    const text = 'The quick brown fox jumps over the lazy dog. ';
-                    const encoder = new TextEncoder();
-                    const textBytes = encoder.encode(text);
-                    const repeats = Math.floor(size / textBytes.length);
-                    const remaining = size - (repeats * textBytes.length);
-                    
-                    let data = text.repeat(repeats);
-                    const partialText = text.substring(0, remaining);
-                    data += partialText;
-                    return data;
-                case 'random':
-                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-                    let data = '';
-                    for (let i = 0; i < size; i++) {
-                        data += chars[Math.floor(Math.random() * chars.length)];
-                    }
-                    return data;
-            }
-        }
-
-        function compress(data) {
-            const compressed = pako.deflate(data, { to: 'string' });
-            return compressed;
-        }
-
-        function calculateSize(data) {
-            return new TextEncoder().encode(data).length;
-        }
-
-        function test() {
+        function generateData() {
             const size = parseInt(document.getElementById('size').value);
-            const types = [
-                { name: '규칙적인 데이터', type: 'pattern' },
-                { name: '자연어 데이터', type: 'natural' },
-                { name: '무작위 데이터', type: 'random' }
-            ];
-            let resultHtml = '';
-
-            for (let type of types) {
-                const data = generateData(type.type, size);
-                const compressed = compress(data);
-                
-                const originalSize = new TextEncoder().encode(data).length;
-                const compressedSize = new TextEncoder().encode(compressed).length;
-                
-                // 압축 크기를 원본 크기보다 작게 제한
-                const finalCompressedSize = Math.min(compressedSize, originalSize);
-                
-                // 압축률 계산
-                const rate = (finalCompressedSize / originalSize * 100).toFixed(2);
-                
-                resultHtml += `
-                    <div class="result">
-                        <h3>${type.name}</h3>
-                        <p>원본 크기: ${originalSize} bytes</p>
-                        <p>압축된 크기: ${finalCompressedSize} bytes</p>
-                        <p>압축률: ${rate}%</p>
-                    </div>
-                `;
+            const count = parseInt(document.getElementById('count').value);
+            const resultDiv = document.getElementById('result');
+            
+            if (!size || !count) {
+                resultDiv.innerHTML = '<div class="error">값을 입력해주세요.</div>';
+                return;
             }
 
-            document.getElementById('result').innerHTML = resultHtml;
+            if (isNaN(size) || isNaN(count) || size <= 0 || count <= 0) {
+                resultDiv.innerHTML = '<div class="error">올바른 숫자를 입력해주세요.</div>';
+                return;
+            }
+
+            // 규칙적인 데이터 생성
+            const patternData = generatePatternData(size, count);
+            // 자연어 데이터 생성
+            const naturalData = generateNaturalData(size, count);
+            // 무작위 데이터 생성
+            const randomData = generateRandomData(size, count);
+
+            resultDiv.innerHTML = `
+                <h2>생성된 데이터</h2>
+                <div class="result-section">
+                    <h3>1. 규칙적인 데이터</h3>
+                    <p>${patternData}</p>
+                </div>
+                <div class="result-section">
+                    <h3>2. 자연어 데이터</h3>
+                    <p>${naturalData}</p>
+                </div>
+                <div class="result-section">
+                    <h3>3. 무작위 데이터</h3>
+                    <p>${randomData}</p>
+                </div>
+            `;
+        }
+
+        function generatePatternData(size, count) {
+            const pattern = 'ABCD';
+            let result = '';
+            for (let i = 0; i < count; i++) {
+                result += pattern.repeat(Math.floor(size / pattern.length));
+            }
+            return result.substring(0, size * count);
+        }
+
+        function generateNaturalData(size, count) {
+            const words = ['안녕', '하세요', '감사합니다', '좋은', '하루', '데이터', '생성', '테스트'];
+            let result = '';
+            for (let i = 0; i < count; i++) {
+                for (let j = 0; j < size / 3; j++) {
+                    result += words[Math.floor(Math.random() * words.length)] + ' ';
+                }
+            }
+            return result.substring(0, size * count);
+        }
+
+        function generateRandomData(size, count) {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            for (let i = 0; i < count; i++) {
+                for (let j = 0; j < size; j++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+            }
+            return result;
         }
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.4/pako_deflate.min.js"></script>
 </body>
 </html>
