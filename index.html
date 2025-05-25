@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
+    <meta charset="UTF-8">
+    <title>데이터 압축 효율 테스트기</title>
     <style>
         body { font-family: Arial, sans-serif; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; }
@@ -11,11 +13,12 @@
         button:hover { background: #45a049; }
         .result { margin-top: 20px; padding: 15px; border: 1px solid #ddd; }
         .error { color: red; margin: 10px 0; }
+        .compression-result { margin: 10px 0; padding: 10px; background: #f8f9fa; border-radius: 4px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>데이터 생성기</h1>
+        <h1>데이터 압축 효율 테스트기</h1>
         
         <div class="input-group">
             <label>데이터 크기 (바이트):</label>
@@ -27,13 +30,13 @@
             <input type="number" id="count" min="1" placeholder="반복 횟수를 입력하세요">
         </div>
 
-        <button onclick="generateData()">데이터 생성</button>
+        <button onclick="testCompression()">테스트 실행</button>
 
         <div id="result"></div>
     </div>
 
     <script>
-        function generateData() {
+        function testCompression() {
             const size = parseInt(document.getElementById('size').value);
             const count = parseInt(document.getElementById('count').value);
             const resultDiv = document.getElementById('result');
@@ -48,28 +51,112 @@
                 return;
             }
 
-            // 규칙적인 데이터 생성
+            // 데이터 생성
             const patternData = generatePatternData(size, count);
-            // 자연어 데이터 생성
             const naturalData = generateNaturalData(size, count);
-            // 무작위 데이터 생성
             const randomData = generateRandomData(size, count);
 
+            // 압축 테스트 실행
+            const results = [];
+            
+            // 1. 규칙적인 데이터 테스트
+            const patternResult = testCompressionWithText(patternData);
+            results.push({
+                type: "규칙적인 데이터",
+                originalSize: patternResult.originalSize,
+                compressedSize: patternResult.compressedSize,
+                compressionRate: patternResult.compressionRate
+            });
+
+            // 2. 자연어 데이터 테스트
+            const naturalResult = testCompressionWithText(naturalData);
+            results.push({
+                type: "자연어 데이터",
+                originalSize: naturalResult.originalSize,
+                compressedSize: naturalResult.compressedSize,
+                compressionRate: naturalResult.compressionRate
+            });
+
+            // 3. 무작위 데이터 테스트
+            const randomResult = testCompressionWithText(randomData);
+            results.push({
+                type: "무작위 데이터",
+                originalSize: randomResult.originalSize,
+                compressedSize: randomResult.compressedSize,
+                compressionRate: randomResult.compressionRate
+            });
+
+            // 결과 표시
             resultDiv.innerHTML = `
-                <h2>생성된 데이터</h2>
-                <div class="result-section">
-                    <h3>1. 규칙적인 데이터</h3>
-                    <p>${patternData}</p>
-                </div>
-                <div class="result-section">
-                    <h3>2. 자연어 데이터</h3>
-                    <p>${naturalData}</p>
-                </div>
-                <div class="result-section">
-                    <h3>3. 무작위 데이터</h3>
-                    <p>${randomData}</p>
-                </div>
+                <h2>압축 효율 테스트 결과</h2>
+                ${results.map(result => `
+                    <div class="compression-result">
+                        <h3>${result.type}</h3>
+                        <p>원본 크기: ${result.originalSize} bytes</p>
+                        <p>압축된 크기: ${result.compressedSize} bytes</p>
+                        <p>압축률: ${result.compressionRate}%</p>
+                    </div>
+                `).join('')}
             `;
+        }
+
+        function testCompressionWithText(text) {
+            // 텍스트를 UTF-8로 인코딩
+            const encoder = new TextEncoder();
+            const originalBytes = encoder.encode(text);
+            
+            // 압축 (LZ77 알고리즘 사용)
+            const compressedBytes = compress(originalBytes);
+            
+            // 압축률 계산
+            const compressionRate = ((compressedBytes.length / originalBytes.length) * 100).toFixed(2);
+            
+            return {
+                originalSize: originalBytes.length,
+                compressedSize: compressedBytes.length,
+                compressionRate: compressionRate
+            };
+        }
+
+        function compress(bytes) {
+            // 간단한 LZ77 압축 알고리즘 구현
+            const windowSize = 1024;
+            const lookAheadSize = 16;
+            let compressed = [];
+            let i = 0;
+
+            while (i < bytes.length) {
+                let bestMatch = { offset: 0, length: 0 };
+                
+                // 현재 위치에서부터 lookAhead 버퍼를 검사
+                for (let j = 1; j <= lookAheadSize && i + j <= bytes.length; j++) {
+                    // 이전 window에서 같은 패턴 찾기
+                    for (let k = 1; k <= windowSize && i - k >= 0; k++) {
+                        let matchLength = 0;
+                        while (matchLength < j &&
+                               i - k + matchLength < bytes.length &&
+                               bytes[i + matchLength] === bytes[i - k + matchLength]) {
+                            matchLength++;
+                        }
+                        
+                        if (matchLength > bestMatch.length) {
+                            bestMatch = { offset: k, length: matchLength };
+                        }
+                    }
+                }
+
+                if (bestMatch.length > 0) {
+                    // 압축된 데이터 추가
+                    compressed.push(bestMatch.offset, bestMatch.length);
+                    i += bestMatch.length;
+                } else {
+                    // 압축되지 않은 데이터 추가
+                    compressed.push(bytes[i]);
+                    i++;
+                }
+            }
+
+            return new Uint8Array(compressed);
         }
 
         function generatePatternData(size, count) {
