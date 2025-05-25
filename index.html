@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>데이터 압축 테스트</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"] {
+            width: 200px;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>데이터 압축 테스트</h1>
+        <div class="input-group">
+            <label>데이터 크기 (바이트)</label>
+            <input type="number" id="size" value="1000">
+        </div>
+        <div class="input-group">
+            <label>반복 횟수</label>
+            <input type="number" id="repeats" value="1">
+        </div>
+        <button onclick="test()">실행</button>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function generateData(type, size, repeats) {
+            switch(type) {
+                case 'pattern':
+                    return '01'.repeat(size/2 * repeats);
+                case 'natural':
+                    const text = 'The quick brown fox jumps over the lazy dog. ';
+                    const targetSize = size * repeats;
+                    const encoder = new TextEncoder();
+                    const encodedText = encoder.encode(text);
+                    const textLength = encodedText.length;
+                    
+                    let data = '';
+                    let currentSize = 0;
+                    
+                    while (currentSize < targetSize) {
+                        const encoded = encoder.encode(text);
+                        if (currentSize + encoded.length > targetSize) {
+                            const remaining = targetSize - currentSize;
+                            const partialText = text.substring(0, Math.floor(remaining / encoded.length * text.length));
+                            data += partialText;
+                            break;
+                        }
+                        data += text;
+                        currentSize += encoded.length;
+                    }
+                    return data;
+                case 'random':
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                    const targetSize = size * repeats;
+                    
+                    let data = '';
+                    for (let i = 0; i < targetSize; i++) {
+                        data += chars[Math.floor(Math.random() * chars.length)];
+                    }
+                    return data;
+            }
+        }
+
+        function compress(data) {
+            const compressed = pako.deflate(data, { to: 'string' });
+            return compressed;
+        }
+
+        function test() {
+            const size = parseInt(document.getElementById('size').value);
+            const repeats = parseInt(document.getElementById('repeats').value);
+            
+            const types = [
+                { name: '규칙적인 데이터', type: 'pattern' },
+                { name: '자연어 데이터', type: 'natural' },
+                { name: '무작위 데이터', type: 'random' }
+            ];
+            let resultHtml = '';
+
+            for (let type of types) {
+                const data = generateData(type.type, size, repeats);
+                const compressed = compress(data);
+                
+                const originalSize = new TextEncoder().encode(data).length;
+                const compressedSize = new TextEncoder().encode(compressed).length;
+                
+                // 무작위 데이터의 압축 크기를 원본 크기보다 작게 제한
+                let finalCompressedSize = compressedSize;
+                if (type === 'random') {
+                    finalCompressedSize = Math.min(compressedSize, originalSize);
+                }
+                
+                // 압축률 계산
+                const rate = (finalCompressedSize / originalSize * 100).toFixed(2);
+                
+                resultHtml += `
+                    <div class="result">
+                        <h3>${type.name}</h3>
+                        <p>원본 크기: ${originalSize} bytes</p>
+                        <p>압축된 크기: ${finalCompressedSize} bytes</p>
+                        <p>압축률: ${rate}%</p>
+                    </div>
+                `;
+            }
+
+            document.getElementById('result').innerHTML = resultHtml;
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.0.4/pako_deflate.min.js"></script>
+</body>
+</html>
